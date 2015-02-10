@@ -7,19 +7,90 @@ output:
 
 
 ## Loading and preprocessing the data
-
+```{r}
+setwd("C:/Users/laurena/Desktop/Learning Materials/Reproducible Research/repdata_data_activity")
+activity <- read.csv("activity.csv")
+head(activity)
+```
 
 
 ## What is mean total number of steps taken per day?
+```{r}
+tot_steps <- tapply(activity$steps, activity$date, FUN=sum, na.rm=TRUE)
+tot_steps
 
+hist(tot_steps)
+
+mean_perday <- mean(tot_steps, na.rm=TRUE)
+mean_perday
+median_perday <- median(tot_steps, na.rm=TRUE)
+median_perday
+```
 
 
 ## What is the average daily activity pattern?
+```{r}
+averages <- aggregate(x=list(steps=activity$steps), by=list(interval=activity$interval),
+                         FUN=mean, na.rm=TRUE)
 
+plot(averages$steps~averages$interval,
+     type="l", ylab="Avg # of Steps", xlab="Time Interval", 
+     main="Average # of steps across all days")
+
+max_time <- which.max(averages$steps)
+max_time
+```
 
 
 ## Imputing missing values
+```{r}
+missing <- is.na(activity$steps)
+table(missing)
 
+##fill in missing values with the average for that time interval
+fill_value <- function(steps, interval) {
+     filled <- NA
+     if (!is.na(steps))
+          filled <- c(steps)
+     else
+          filled <- (averages[averages$interval==interval, "steps"])
+     return(filled)
+}
+filled_activity <- activity
+filled_activity$steps <- mapply(fill_value, filled_activity$steps, filled_activity$interval)
+head(filled_activity)
+
+tot_steps_filled <- tapply(filled_activity$steps, filled_activity$date, FUN=sum, na.rm=TRUE)
+tot_steps_filled
+
+hist(tot_steps_filled)
+mean_perday_filled <- mean(tot_steps_filled)
+mean_perday_filled
+median_perday_filled <- median(tot_steps_filled)
+median_perday_filled
+```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+weekend_or_weekday <- function(date) {
+     day <- weekdays(date)
+     if (day %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"))
+          return("weekday")
+     else if (day %in% c("Saturday", "Sunday"))
+          return("weekend")
+}
+filled_activity$date <- as.Date(filled_activity$date)
+filled_activity$day <- sapply(filled_activity$date, FUN=weekend_or_weekday)
+head(filled_activity)
+
+averages <- aggregate(steps ~ interval + day, data=filled_activity, mean)
+with(averages, {
+     plot(averages$interval[averages$day=="weekday"], averages$steps[averages$day=="weekday"],
+                     type="l", ylab="Avg # of Steps", xlab="Time Interval")
+     lines(averages$interval[averages$day=="weekend"], averages$steps[averages$day=="weekend"], 
+     col=2)
+})
+legend("topright", col=c("Black","Red"), lty=1, lwd=2,
+       legend=c("Weekday","Weekend"))
+```      
